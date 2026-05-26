@@ -1,0 +1,163 @@
+name: Cert Auto Issue & Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode (skip upload)'
+        required: false
+        default: 'false'
+        type: boolean
+  schedule:
+    - cron: '0 3 * * *'
+
+env:
+  AIC_VERSION: '0.1.1'
+  NODE_VERSION: '20'
+
+jobs:
+  cert-issue-and-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install aic CLI
+        run: |
+          npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
+
+      - name: Verify aic installation
+        run: aic --version
+
+      - name: Load domain configuration
+        run: |
+          if [ -f "${{ github.workspace }}/config/domains.env" ]; then
+            cat "${{ github.workspace }}/config/domains.env" >> $GITHUB_ENV
+          fi
+
+      - name: Validate required environment variables
+        run: |
+          required_vars="CERT_DOMAIN ALIYUN_ACCESS_KEY_ID ALIYUN_ACCESS_KEY_SECRET"
+          for var in $required_vars; do
+            if [ -z "${!var}" ]; then
+              echo "Error: $var is not set"
+              exit 1
+            fi
+          done
+          echo "All required environment variables are set"
+
+      - name: Issue certificate via ACME DNS-01
+        id: issue
+        run: |
+          echo "Issuing certificate for domain: $CERT_DOMAIN"
+          output=$(aic cert:issue -d aliyun $CERT_DOMAIN 2>&2)
+          echo "$output"
+          echo "cert_path=$(echo "$output" | grep -oP '"certPath":"[^"]+"' | cut -d'"' -f4)" >> $GITHUB_OUTPUT
+          echo "key_path=$(echo "$output" | grep -oP '"keyPath":"[^"]+"' | cut -d'"' -f4)" >> $GITHUB_OUTPUT
+
+      - name: Check certificate files exist
+        run: |
+          cert_path=$(cat $GITHUB_OUTPUT | grep cert_path | cut -d'=' -f2)
+          key_path=$(cat $GITHUB_OUTPUT | grep key_path | cut -d'=' -f2)
+          echo "Certificate: $cert_path"
+          echo "Private Key: $key_path"
+          if [ ! -f "$cert_path" ]; then
+            echo "Error: Certificate file not found"
+            exit 1
+          fi
+          if [ ! -f "$key_path" ]; then
+            echo "Error: Key file not found"
+            exit 1
+          fi
+          echo "Certificate files verified successfully"
+
+      - name: Upload certificate to Aliyun CAS
+        if: github.event.inputs.dry_run != 'true'
+        id: upload
+        run: |
+          cert_name="${CERT_DOMAIN}-$(date +%Y%m%d)"
+          echo "Uploading certificate as: $cert_name"
+          cert_path=$(cat $GITHUB_OUTPUT | grep cert_path | cut -d'=' -f2)
+          key_path=$(cat $GITHUB_OUTPUT | grep key_path | cut -d'=' -f2)
+          output=$(aic aliyun-cert:upload "$cert_name" "$cert_path" "$key_path" 2>&2)
+          echo "$output"
+          echo "cert_id=$(echo "$output" | grep -oP '"certId":"[^"]+"' | cut -d'"' -f4)" >> $GITHUB_OUTPUT
+          echo "upload_success=$(echo "$output" | grep -oP '"success":(true|false)' | cut -d':' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Verify upload result
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          upload_success=$(cat $GITHUB_OUTPUT | grep upload_success | cut -d'=' -f2)
+          if [ "$upload_success" != "true" ]; then
+            echo "Error: Certificate upload failed"
+            exit 1
+          fi
+          cert_id=$(cat $GITHUB_OUTPUT | grep cert_id | cut -d'=' -f2)
+          echo "Certificate uploaded successfully: $cert_id"
+
+      - name: List Aliyun CAS certificates
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          echo "Current certificates in Aliyun CAS:"
+          aic aliyun-cert:list
+
+      - name: Upload certificate to Aliyun CAS (dry-run mode)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "Dry-run mode: skipping upload"
+          echo "Would upload certificate for domain: $CERT_DOMAIN"
+          cert_path=$(cat $GITHUB_OUTPUT | grep cert_path | cut -d'=' -f2)
+          key_path=$(cat $GITHUB_OUTPUT | grep key_path | cut -d'=' -f2)
+          echo "Certificate path: $cert_path"
+          echo "Key path: $key_path"
+
+      - name: Show certificate details
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cert_id=$(cat $GITHUB_OUTPUT | grep cert_id | cut -d'=' -f2)
+          if [ -n "$cert_id" ]; then
+            aic aliyun-cert:info $cert_id
+          fi
+
+  qiniu-cert-renew:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install aic CLI
+        run: |
+          npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
+
+      - name: Verify aic installation
+        run: aic --version
+
+      - name: Renew Qiniu CDN certificates
+        run: |
+          aic cert:renew --dry-run
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
+
+      - name: Execute renewal if needed
+        run: |
+          aic cert:renew
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
