@@ -45,8 +45,13 @@ jobs:
           npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
 
       - name: Send WeChat test notification
-        if: secrets.WECHAT_OPENID != ''
+        env:
+          WECHAT_OPENID: ${{ secrets.WECHAT_OPENID }}
         run: |
+          if [ -z "$WECHAT_OPENID" ]; then
+            echo "WECHAT_OPENID is empty, skip notification"
+            exit 0
+          fi
           aic notify:send "${{ secrets.WECHAT_OPENID }}" \
             "证书续期通知测试" \
             "WeChat 通知链路正常" \
@@ -93,8 +98,14 @@ jobs:
           aic cert:renew --days "${{ github.event.inputs.renew_days || '30' }}"
 
       - name: Notify on failure (WeChat)
-        if: failure() && secrets.WECHAT_OPENID != ''
+        if: failure()
+        env:
+          WECHAT_OPENID: ${{ secrets.WECHAT_OPENID }}
         run: |
+          if [ -z "$WECHAT_OPENID" ]; then
+            echo "WECHAT_OPENID is empty, skip notification"
+            exit 0
+          fi
           aic notify:send "${{ secrets.WECHAT_OPENID }}" \
             "证书续期失败" \
             "仓库: ${{ github.repository }} 运行: ${{ github.run_id }}" \
