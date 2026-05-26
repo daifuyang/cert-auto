@@ -33,12 +33,7 @@ jobs:
       - name: Setup config
         run: |
           mkdir -p ~/.config/aic
-          cat > ~/.config/aic/config.toml << EOF
-          [aliyun]
-          accessKeyId = "${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
-          accessKeySecret = "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
-          default-profile = "personal"
-          EOF
+          echo "${{ secrets.AIC_CONFIG }}" > ~/.config/aic/config.toml
 
       - name: Install aic CLI
         run: |
@@ -154,24 +149,7 @@ jobs:
       - name: Setup config
         run: |
           mkdir -p ~/.config/aic
-          cat > ~/.config/aic/config.toml << EOF
-          [qiniu]
-          accessKey = "${{ secrets.QINIU_ACCESS_KEY }}"
-          secretKey = "${{ secrets.QINIU_SECRET_KEY }}"
-          bucket = "ai-code"
-          domain = "cdn.zerocmf.com"
-          region = "z0"
-
-          [aliyun]
-          accessKeyId = "${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
-          accessKeySecret = "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
-          default-profile = "personal"
-
-          [acme]
-          path = "~/.acme.sh/acme.sh"
-          dnsProvider = "aliyun"
-          email = "admin@zerocmf.com"
-          EOF
+          echo "${{ secrets.AIC_CONFIG }}" > ~/.config/aic/config.toml
 
       - name: Install acme.sh
         run: |
