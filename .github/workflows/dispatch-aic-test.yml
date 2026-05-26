@@ -1,0 +1,16 @@
+name: Dispatch AIC Install Test
+
+on:
+  workflow_dispatch:
+
+env:
+  AIC_VERSION: '0.1.1'
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install aic CLI
+        run: |
+          npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
+      - run: echo "ok"
