@@ -30,6 +30,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Setup config
+        run: |
+          mkdir -p ~/.config/aic
+          cat > ~/.config/aic/config.toml << EOF
+          [aliyun]
+          accessKeyId = "${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
+          accessKeySecret = "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
+          default-profile = "personal"
+          EOF
+
       - name: Install aic CLI
         run: |
           npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
@@ -141,6 +151,32 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Setup config
+        run: |
+          mkdir -p ~/.config/aic
+          cat > ~/.config/aic/config.toml << EOF
+          [qiniu]
+          accessKey = "${{ secrets.QINIU_ACCESS_KEY }}"
+          secretKey = "${{ secrets.QINIU_SECRET_KEY }}"
+          bucket = "ai-code"
+          domain = "cdn.zerocmf.com"
+          region = "z0"
+
+          [aliyun]
+          accessKeyId = "${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
+          accessKeySecret = "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
+          default-profile = "personal"
+
+          [acme]
+          path = "~/.acme.sh/acme.sh"
+          dnsProvider = "aliyun"
+          email = "admin@zerocmf.com"
+          EOF
+
+      - name: Install acme.sh
+        run: |
+          curl https://get.acme.sh | sh -s email=admin@zerocmf.com
+
       - name: Install aic CLI
         run: |
           npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
@@ -151,19 +187,7 @@ jobs:
       - name: Renew Qiniu CDN certificates
         run: |
           aic cert:renew --dry-run
-        env:
-          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
-          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
-          ALIYUN_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-          ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-          AIC_ALIYUN_PROFILE: personal
 
       - name: Execute renewal if needed
         run: |
           aic cert:renew
-        env:
-          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
-          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
-          ALIYUN_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-          ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-          AIC_ALIYUN_PROFILE: personal
