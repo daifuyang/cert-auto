@@ -31,9 +31,17 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup config
+        env:
+          ALIYUN_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
         run: |
           mkdir -p ~/.config/aic
-          echo "${{ secrets.AIC_CONFIG }}" > ~/.config/aic/config.toml
+          cat > ~/.config/aic/config.toml << EOF
+          [aliyun]
+          accessKeyId = "$ALIYUN_ACCESS_KEY_ID"
+          accessKeySecret = "$ALIYUN_ACCESS_KEY_SECRET"
+          default-profile = "personal"
+          EOF
 
       - name: Install aic CLI
         run: |
@@ -147,9 +155,31 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup config
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
+          ALIYUN_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
         run: |
           mkdir -p ~/.config/aic
-          echo "${{ secrets.AIC_CONFIG }}" > ~/.config/aic/config.toml
+          cat > ~/.config/aic/config.toml << EOF
+          [qiniu]
+          accessKey = "$QINIU_ACCESS_KEY"
+          secretKey = "$QINIU_SECRET_KEY"
+          bucket = "ai-code"
+          domain = "cdn.zerocmf.com"
+          region = "z0"
+
+          [aliyun]
+          accessKeyId = "$ALIYUN_ACCESS_KEY_ID"
+          accessKeySecret = "$ALIYUN_ACCESS_KEY_SECRET"
+          default-profile = "personal"
+
+          [acme]
+          path = "~/.acme.sh/acme.sh"
+          dnsProvider = "aliyun"
+          email = "admin@zerocmf.com"
+          EOF
 
       - name: Install acme.sh
         run: |
