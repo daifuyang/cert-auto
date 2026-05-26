@@ -2,8 +2,17 @@ name: Cert Auto Renew
 
 on:
   workflow_dispatch:
+    inputs:
+      renew_days:
+        description: Renew if cert expires within N days
+        required: false
+        default: "30"
   schedule:
     - cron: '0 12 * * *'
+
+concurrency:
+  group: cert-auto-renew
+  cancel-in-progress: false
 
 env:
   AIC_VERSION: '0.1.2-dev.2'
@@ -13,10 +22,11 @@ jobs:
   qiniu-cert-renew:
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 20
 
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -40,8 +50,19 @@ jobs:
 
       - name: Renew Qiniu CDN certificates
         run: |
-          aic cert:renew --dry-run
+          aic cert:renew --days "${{ github.event.inputs.renew_days || '30' }}" --dry-run
 
       - name: Execute renewal based on Qiniu cert status
         run: |
-          aic cert:renew
+          aic cert:renew --days "${{ github.event.inputs.renew_days || '30' }}"
+
+      - name: Notify on failure
+        if: failure() && secrets.FAILURE_WEBHOOK_URL != ''
+        run: |
+          payload=$(cat <<JSON
+          {
+            "text": "Cert Auto Renew failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          JSON
+          )
+          curl -X POST -H "Content-Type: application/json" -d "$payload" "${{ secrets.FAILURE_WEBHOOK_URL }}"
