@@ -8,8 +8,8 @@ Automated HTTPS certificate issuance via ACME DNS-01 and upload to Aliyun CAS.
 
 | 用途 | Profile | AccessKeyId |
 |------|---------|-------------|
-| DNS 验证 | `personal` | LTAI5tGaLGzAjDMKHKCajB8q |
-| CAS 上传 | `enterprise` | LTAI5tQCSmUopAWN5cd4ZzKz |
+| DNS 验证 | `personal` | 已移除（安全原因） |
+| CAS 上传 | `enterprise` | 已移除（安全原因） |
 
 ### 个人账号 DNS 域名 (personal)
 
