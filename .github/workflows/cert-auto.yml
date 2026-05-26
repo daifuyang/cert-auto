@@ -1,4 +1,4 @@
-name: Cert Auto Issue & Upload
+name: Cert Auto Renew
 
 on:
   workflow_dispatch:
