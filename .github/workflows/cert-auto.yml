@@ -13,13 +13,8 @@ jobs:
   qiniu-cert-renew:
     runs-on: ubuntu-latest
     environment: production
-    permissions:
-      contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
