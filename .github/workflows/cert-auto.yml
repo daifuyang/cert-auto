@@ -42,6 +42,6 @@ jobs:
         run: |
           aic cert:renew --dry-run
 
-      - name: Execute renewal if needed
+      - name: Debug ACME issue command
         run: |
-          aic cert:renew
+          /home/runner/.acme.sh/acme.sh --issue --dns dns_ali -d cdn.vlog-v.com --email 1140444693@qq.com --keylength 4096 --force --debug 2
