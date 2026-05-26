@@ -2,6 +2,8 @@ name: Cert Auto Issue and Upload V2
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * *'
 
 jobs:
   qiniu-cert-renew:
