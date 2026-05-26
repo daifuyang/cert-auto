@@ -56,13 +56,12 @@ jobs:
         run: |
           aic cert:renew --days "${{ github.event.inputs.renew_days || '30' }}"
 
-      - name: Notify on failure
-        if: failure() && secrets.FAILURE_WEBHOOK_URL != ''
+      - name: Notify on failure (WeChat)
+        if: failure() && secrets.WECHAT_OPENID != ''
         run: |
-          payload=$(cat <<JSON
-          {
-            "text": "Cert Auto Renew failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }
-          JSON
-          )
-          curl -X POST -H "Content-Type: application/json" -d "$payload" "${{ secrets.FAILURE_WEBHOOK_URL }}"
+          aic notify:send "${{ secrets.WECHAT_OPENID }}" \
+            "证书续期失败" \
+            "仓库: ${{ github.repository }} 运行: ${{ github.run_id }}" \
+            -u "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -t "证书告警" \
+            -r "请尽快处理并重试"
