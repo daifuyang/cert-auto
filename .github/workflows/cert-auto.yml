@@ -42,25 +42,6 @@ jobs:
         run: |
           aic cert:renew --dry-run
 
-      - name: Execute renewal only when local cert near expiry
+      - name: Execute renewal based on Qiniu cert status
         run: |
-          DOMAIN="cdn.vlog-v.com"
-          CERT_FILE="/home/runner/.acme.sh/${DOMAIN}/fullchain.cer"
-          DAYS=30
-
-          if [ -f "$CERT_FILE" ]; then
-            END_DATE=$(openssl x509 -enddate -noout -in "$CERT_FILE" | cut -d= -f2)
-            END_TS=$(date -d "$END_DATE" +%s)
-            NOW_TS=$(date +%s)
-            LEFT_DAYS=$(( (END_TS - NOW_TS) / 86400 ))
-            echo "Local cert remaining days: ${LEFT_DAYS}"
-
-            if [ "$LEFT_DAYS" -gt "$DAYS" ]; then
-              echo "Skip renewal: local cert is not near expiry"
-              exit 0
-            fi
-          else
-            echo "No local cert found, continue with renewal flow"
-          fi
-
           aic cert:renew
