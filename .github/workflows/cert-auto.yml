@@ -7,6 +7,10 @@ on:
         description: Renew if cert expires within N days
         required: false
         default: "30"
+      notify_test:
+        description: Send WeChat test notification only
+        required: false
+        default: "false"
   schedule:
     - cron: '0 12 * * *'
 
@@ -19,7 +23,39 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  wechat-notify-test:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.notify_test == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup config
+        env:
+          AIC_CONFIG: ${{ secrets.AIC_CONFIG }}
+        run: |
+          mkdir -p ~/.config/aic
+          printf '%s\n' "$AIC_CONFIG" > ~/.config/aic/config.toml
+
+      - name: Install aic CLI
+        run: |
+          npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
+
+      - name: Send WeChat test notification
+        if: secrets.WECHAT_OPENID != ''
+        run: |
+          aic notify:send "${{ secrets.WECHAT_OPENID }}" \
+            "证书续期通知测试" \
+            "WeChat 通知链路正常" \
+            -u "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -t "测试通知" \
+            -r "这是一条手动触发的测试消息"
+
   qiniu-cert-renew:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.notify_test != 'true'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 20
