@@ -42,6 +42,51 @@ jobs:
         run: |
           aic cert:renew --dry-run
 
-      - name: Debug ACME issue command
+      - name: Renew ACME cert only when near expiry
         run: |
-          /home/runner/.acme.sh/acme.sh --issue --dns dns_ali -d cdn.vlog-v.com --email 1140444693@qq.com --keylength 4096 --force --debug 2
+          DOMAIN="cdn.vlog-v.com"
+          ACME="/home/runner/.acme.sh/acme.sh"
+          CERT_FILE="/home/runner/.acme.sh/${DOMAIN}/fullchain.cer"
+          DAYS=30
+
+          eval "$(python3 - <<'PY'
+import tomllib
+from pathlib import Path
+
+cfg = tomllib.loads(Path.home().joinpath('.config/aic/config.toml').read_text())
+aliyun = cfg.get('aliyun', {})
+default_profile = aliyun.get('default-profile', 'personal')
+profiles = aliyun.get('profiles', {})
+p = profiles.get(default_profile, {})
+ak = p.get('accessKeyId', '')
+sk = p.get('accessKeySecret', '')
+
+if not ak or not sk:
+    ak = aliyun.get('accessKeyId', '')
+    sk = aliyun.get('accessKeySecret', '')
+
+if not ak or not sk:
+    raise SystemExit('echo "Aliyun credentials not found in AIC_CONFIG"; exit 1')
+
+print(f'export Ali_Key="{ak}"')
+print(f'export Ali_Secret="{sk}"')
+PY
+)"
+
+          if [ -f "$CERT_FILE" ]; then
+            END_DATE=$(openssl x509 -enddate -noout -in "$CERT_FILE" | cut -d= -f2)
+            END_TS=$(date -d "$END_DATE" +%s)
+            NOW_TS=$(date +%s)
+            LEFT_DAYS=$(( (END_TS - NOW_TS) / 86400 ))
+            echo "Local cert remaining days: ${LEFT_DAYS}"
+
+            if [ "$LEFT_DAYS" -gt "$DAYS" ]; then
+              echo "Skip renewal: local cert is not near expiry"
+              exit 0
+            fi
+
+            "$ACME" --renew -d "$DOMAIN" --dns dns_ali --keylength 4096 --debug 2
+          else
+            echo "No local cert found, issuing new cert"
+            "$ACME" --issue --dns dns_ali -d "$DOMAIN" --email 1140444693@qq.com --keylength 4096 --debug 2
+          fi
