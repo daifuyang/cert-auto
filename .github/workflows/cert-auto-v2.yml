@@ -4,7 +4,43 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
+  qiniu-cert-renew:
     runs-on: ubuntu-latest
+    environment: PRODUCTION
+    env:
+      AIC_VERSION: '0.1.1'
+      NODE_VERSION: '20'
     steps:
-      - run: echo "v2 dispatch smoke ok"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup config
+        env:
+          AIC_CONFIG: ${{ secrets.AIC_CONFIG }}
+        run: |
+          mkdir -p ~/.config/aic
+          printf '%s\n' "$AIC_CONFIG" > ~/.config/aic/config.toml
+
+      - name: Install acme.sh
+        run: |
+          curl https://get.acme.sh | sh -s email=admin@zerocmf.com
+
+      - name: Install aic CLI
+        run: |
+          npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
+
+      - name: Verify aic installation
+        run: aic --version
+
+      - name: Renew Qiniu CDN certificates (dry-run)
+        run: |
+          aic cert:renew --dry-run
+
+      - name: Execute renewal if needed
+        run: |
+          aic cert:renew
