@@ -19,12 +19,15 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  qiniu-cert-renew:
+  cert-renew:
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 20
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -45,6 +48,14 @@ jobs:
         run: |
           npm install -g @zerocmf/aic@${{ env.AIC_VERSION }}
 
+      - name: Install Aliyun CLI
+        run: |
+          curl -fsSL https://aliyuncli.alicdn.com/install.sh | sudo bash
+
+      - name: Configure Aliyun CLI
+        run: |
+          node scripts/configure-aliyun-cli-from-aic.mjs enterprise cn-shanghai
+
       - name: Verify aic installation
         run: aic --version
 
@@ -55,6 +66,17 @@ jobs:
       - name: Execute renewal based on Qiniu cert status
         run: |
           aic cert:renew --days "${{ github.event.inputs.renew_days || '30' }}"
+
+      - name: Renew CodeCloud Aliyun FC certificate
+        run: |
+          ./scripts/run-cert-flow.sh \
+            --renew-days "${{ github.event.inputs.renew_days || '30' }}" \
+            --profile enterprise \
+            --domain codecloud.ltd \
+            --domain www.codecloud.ltd \
+            --fc-domain codecloud.ltd \
+            --fc-domain www.codecloud.ltd \
+            --fc-region cn-shanghai
 
       - name: Notify on failure (WeChat)
         if: failure()

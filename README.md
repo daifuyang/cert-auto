@@ -40,6 +40,7 @@ Automated HTTPS certificate issuance via ACME DNS-01 and upload to Aliyun CAS.
 | 证书名 | 域名 | 签发方 | 到期日 | 状态 |
 |--------|------|--------|--------|------|
 | demo-test-enterprise | demo.zerocmf.com | Let's Encrypt | 2026-08-23 | 有效 |
+| codecloud.ltd | codecloud.ltd, www.codecloud.ltd | Let's Encrypt | 自动续期 | 上传至阿里云 CAS 并同步 FC |
 
 ### Qiniu CDN 证书
 
@@ -78,6 +79,7 @@ aic cert:renew --days 60 --dry-run
 
 - **手动触发**: Actions → Cert Auto Issue & Upload → Run workflow
 - **定时任务**: 每日 03:00 UTC 自动执行
+- **CodeCloud**: 过期前 30 天自动签发 `codecloud.ltd` + `www.codecloud.ltd` SAN 证书，上传阿里云 CAS 后更新上海 FC 自定义域名证书。
 
 ---
 
@@ -100,6 +102,16 @@ aic aliyun-cert:upload <name> <certFile> <keyFile> -p enterprise
 
 # 证书签发
 aic cert:issue <domain> -d aliyun -p personal
+
+# CodeCloud FC 证书续签检查
+./scripts/run-cert-flow.sh \
+  --renew-days 30 \
+  --profile enterprise \
+  --domain codecloud.ltd \
+  --domain www.codecloud.ltd \
+  --fc-domain codecloud.ltd \
+  --fc-domain www.codecloud.ltd \
+  --fc-region cn-shanghai
 ```
 
 ---
